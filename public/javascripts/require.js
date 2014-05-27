@@ -1,29 +1,9 @@
-var obj = function (value) {
-	this.value = value;
-};
-obj.prototype = {
-	init : function (options) {
-		console.log("O#init : ", options);
-	},
-	getValue : function () {
-		console.log("O#getValue");
-		return this.value;
-	}
-};
-
-var req = function(){};
-req.prototype = {
-	request:function(){
-		console.log("B#request");
-	}
-};
-
 (function () {
 	var _package = {}, _loading = [],
-		_modules = [];
+		_modules = [], JSE;
 
 	var Module = function (name, list) {
-		console.log("Module# create Module: ", arguments);
+		console.log("> Module# create Module: ", arguments);
 		L.Util.extend(this, L.Events);
 
 		var _list = this.list = [], i;
@@ -52,42 +32,47 @@ req.prototype = {
 		}
 
 		this.name = name;
+		console.log("> Initialisation Module '" + this.name + "' : ", this);
 	};
 
 	Module.prototype = {
 		name : "",
 		type : "define",
-		list : [],
+		list : null,
 		loaded : false,
 		cpt : 0,
 		load : function () {
 			//console.log("Module#load ("+this.name+"): ", this, " ,l: ", this.cpt + " <> " + this.list.length);
 
 			if (this.cpt < this.list.length) {
-				console.log("--- load next '"+ this.list[this.cpt].name +"' ---");
+				console.log("--- load next '" + this.list[this.cpt].name + "' ---");
 				this.list[this.cpt].on("loaded", function () {
 					console.log("- module " + this.list[this.cpt].name + " loaded");
 					this.cpt++;
 					this.load();
 				}, this);
 
-				this.list[this.cpt]._load(this.list[this.cpt].name);
+				if (typeof (window) !== "undefined") {
+					this.list[this.cpt]._loadScript(this.list[this.cpt].name);
+				} else {
+					this.list[this.cpt]._loadNode(this.list[this.cpt].name);
+				}
 			} else {
-				console.log("--- Modules '"+ this.name +"' loaded ---");
+				console.log("--- Modules '" + this.name + "' loaded ---");
 				console.log("- cpt:" + this.cpt + "- --- ", this);
 				var params = [];
 				for (var j = 0; j < this.list.length; j++) {
-					params.push(this.list[j].fct);
+					params.push(this.list[j].fct.apply(this));
 				}
 
 				if (this.type === "define") {
-					console.log("--1-- ", params);
+					console.log("--1-- ", params, this.name);
 					var fct = this.fct;
 					this.fct = fct.apply(this, params);
 					/*this.fct = function(){
-						console.log("... ", arguments, "...");
-						return fct.apply(this, params);
-					}*/
+					 console.log("... ", arguments, "...");
+					 return fct.apply(this, params);
+					 }*/
 
 				} else if (this.type === "require") {
 					console.log("--2-- ", params);
@@ -105,7 +90,7 @@ req.prototype = {
 			}
 		},
 
-		_load : function (name) {
+		_loadScript : function (name) {
 			console.log(">>> loading ", name);
 			var url = this.packageToUrl(name);
 			var script = this.createScript(url);
@@ -122,6 +107,21 @@ req.prototype = {
 
 			document.head.appendChild(script);
 		},
+
+		_loadNode : function (name) {
+			console.log(">>> loading ", name);
+
+			require(this.convertModuleToPath(name));
+
+		},
+
+		convertModuleToPath : function (module) {
+			var len = module.split(".").length,
+				name = module.split(".")[len - 1] + ".js",
+				path = module.replace(/\./g, "/") + "/" + name;
+			return "./modules/" + path;
+		},
+
 		register : function () {
 			//_modules.push({ name : this.name, loaded : false });
 			console.log("Module#_modules: ", _modules);
@@ -145,7 +145,6 @@ req.prototype = {
 		var master = new Module("master", list);
 		master.type = "require";
 		master.fct = fct;
-		master.obj = obj;
 
 		_modules.push(master);
 
@@ -169,10 +168,9 @@ req.prototype = {
 		_analysePackage(list, fct);
 	}
 
-	window.require = _require;
 
-	var Define = function (list, fct) {
-		console.log("Define: ", list, fct);
+	var Define = function (name, list, fct) {
+		console.log("Define: ", name, list, fct);
 		var module, i;
 		this.list = [];
 
@@ -204,6 +202,7 @@ req.prototype = {
 				module = value;
 			}
 		}
+		module.name = name;
 		module.type = "define";
 		module.fct = fct;
 		module.list = this.list;
@@ -224,9 +223,24 @@ req.prototype = {
 		modules : []
 	};
 
-	function _define(list, fct) {
-		return new Define(list, fct);
+	function _define(name, list, fct) {
+		return new Define(name, list, fct);
 	}
 
-	window.define = _define;
+	JSE = {};
+	JSE.require = _require;
+	JSE.define = _define;
+
+	if (typeof (window) !== "undefined") {
+		window.JSE = {};
+		window.JSE.require = _require;
+		window.JSE.define = _define;
+	} else {
+		global.JSE = JSE;
+		require('./Class');
+		require('./Events');
+		require('./Util');
+		exports.require = JSE.require;
+		exports.define = JSE.define;
+	}
 })();

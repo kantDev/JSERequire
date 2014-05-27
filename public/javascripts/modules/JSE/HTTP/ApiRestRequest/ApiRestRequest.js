@@ -1,4 +1,4 @@
-define([],
+JSE.define("JSE.HTTP.ApiRestRequest", [],
 	function () {
 		console.log("<> execution ApiRestRequest args: ", arguments);
 		var core = function (value) {
@@ -11,7 +11,7 @@ define([],
 				console.log("ApiRestRequest#init");
 			},
 			request : function (options) {
-				return this.value;
+				return { coords : { lat : 2, lng : 3 }};
 			},
 			_request : function () {
 				var fake = { coords : { lat : 2, lng : 3 }};

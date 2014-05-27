@@ -1,5 +1,8 @@
-define(["JSE.HTTP.ApiRestRequest"],
-	function (Rest) {
+JSE.define("ViaMichelin.Api.Geocoding",
+	["JSE.HTTP.ApiRestRequest", "ViaMichelin.Api.Model.GeoLocation"],
+	function (Rest, Geo) {
+		var request;
+
 		console.log("<> execution Geocoding ", arguments, ", this: ", this);
 		var core = function (value) {
 			console.log("Geocoding#core ", value);
@@ -9,11 +12,11 @@ define(["JSE.HTTP.ApiRestRequest"],
 		core.prototype = {
 			init : function () {
 				console.log("Geocoding#init: ", this);
-				var r = new Rest();
-				r.init();
+				request = new Rest();
+				request.init();
 			},
 			request : function (options) {
-				return this.value;
+				return request.request();
 			},
 			_request : function () {
 				var fake = { coords : { lat : 2, lng : 3 }};
